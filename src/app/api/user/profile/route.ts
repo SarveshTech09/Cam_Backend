@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
-import { getAuth } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getAuth, updateProfile } from 'firebase/auth';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,12 +16,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get additional user data from Firestore
+    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+    const userData = userDoc.data();
+
     return new Response(
       JSON.stringify({ 
         id: currentUser.uid, 
         email: currentUser.email,
         emailVerified: currentUser.emailVerified,
-        displayName: currentUser.displayName
+        displayName: currentUser.displayName,
+        name: userData?.name || currentUser.displayName
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
@@ -44,16 +50,40 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { displayName, photoURL } = await request.json();
+    const { displayName, photoURL, name } = await request.json();
 
-    // In a real implementation, you would update the user profile in Firebase
-    // For now, just returning success
+    // Update Firebase Auth profile
+    await updateProfile(currentUser, {
+      displayName: name || displayName,
+    });
+
+    // Update Firestore user document
+    const userRef = doc(db, 'users', currentUser.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      // Update existing user document
+      await updateDoc(userRef, {
+        ...(name && { name }),
+        ...(photoURL && { photoURL }),
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      // Create new user document if it doesn't exist
+      await setDoc(userRef, {
+        name: name || displayName,
+        email: currentUser.email,
+        photoURL,
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     return new Response(
       JSON.stringify({ 
         message: 'Profile updated successfully',
         id: currentUser.uid,
-        email: currentUser.email
+        email: currentUser.email,
+        name: name || displayName
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );

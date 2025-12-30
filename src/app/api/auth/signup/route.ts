@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { setDoc, doc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, name } = await request.json();
 
     if (!email || !password) {
       return new Response(
@@ -16,10 +17,20 @@ export async function POST(request: NextRequest) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
+    // Save additional user data to Firestore
+    if (name) {
+      await setDoc(doc(db, 'users', user.uid), {
+        name,
+        email: user.email,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
     return new Response(
       JSON.stringify({ 
         id: user.uid, 
-        email: user.email 
+        email: user.email,
+        name
       }),
       { status: 201, headers: { 'Content-Type': 'application/json' } }
     );
