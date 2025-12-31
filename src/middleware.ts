@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from 'firebase/auth';
 
 // Note: This is a simplified middleware example
-// In production, you would verify Firebase ID tokens properly
+// For Firebase authentication, we'll handle verification in each API route
 export function middleware(request: NextRequest) {
-  // Extract token from headers (in a real app, verify Firebase token)
-  const token = request.headers.get('authorization')?.split(' ')[1];
-
-  // For demo purposes, allowing all requests
-  // In a real implementation, you would verify the Firebase token here
+  // For this implementation, we'll handle authentication in individual API routes
+  // rather than in middleware to avoid Firebase Admin SDK complexity
   return NextResponse.next();
 }
 
